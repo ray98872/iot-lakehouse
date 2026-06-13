@@ -1,0 +1,117 @@
+# =============================================================================
+#  IoT Anomaly Detection Lakehouse — 100% local, 100% free
+#
+#  Cloud architecture this replicates:
+#    AWS ECS (data producer)  ->  iot-generator   (local Python container)
+#    AWS S3  (data lake)      ->  minio           (S3-compatible object store)
+#    Databricks (processing)  ->  spark-notebook  (Jupyter + PySpark)
+#
+#  Start everything:   docker compose up -d --build
+#  Jupyter Lab:        http://localhost:8888  (token: lakehouse)
+#  MinIO console:      http://localhost:9001  (minioadmin / minioadmin123)
+# =============================================================================
+
+name: iot-lakehouse
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # MinIO — local S3-compatible object storage (replaces AWS S3)
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest        # pin to a RELEASE.* tag for production
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - lakehouse
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # One-shot init job — creates the `sensor-data-lake` bucket, then exits
+  # ---------------------------------------------------------------------------
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+        mc mb --ignore-existing local/sensor-data-lake &&
+        echo '>>> bucket sensor-data-lake is ready'
+      "
+    networks:
+      - lakehouse
+
+  # ---------------------------------------------------------------------------
+  # IoT generator — streams simulated sensor JSON into MinIO (replaces AWS ECS)
+  # ---------------------------------------------------------------------------
+  iot-generator:
+    build: ./generator
+    container_name: iot-generator
+    depends_on:
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      BUCKET_NAME: sensor-data-lake
+      RAW_PREFIX: raw
+      MACHINE_COUNT: "12"
+      INTERVAL_SECONDS: "5"
+      ANOMALY_PROBABILITY: "0.02"
+      MALFORMED_PROBABILITY: "0.01"
+    networks:
+      - lakehouse
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Spark notebook — Jupyter Lab + PySpark (replaces Databricks)
+  # ---------------------------------------------------------------------------
+  spark-notebook:
+    image: jupyter/pyspark-notebook:spark-3.5.0
+    container_name: spark-notebook
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      JUPYTER_TOKEN: lakehouse
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      BUCKET_NAME: sensor-data-lake
+    ports:
+      - "8888:8888"   # Jupyter Lab
+      - "4040:4040"   # Spark UI (live while a job runs)
+    volumes:
+      - ./notebooks:/home/jovyan/work
+    networks:
+      - lakehouse
+    restart: unless-stopped
+
+networks:
+  lakehouse:
+    driver: bridge
+
+volumes:
+  minio-data:
