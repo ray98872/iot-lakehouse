@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="Ray Mahbub's IoT Anomaly Detection Lakehouse — an enterprise AWS + Databricks streaming architecture replicated 1:1 in Docker Compose, at zero cloud cost." />
+<title>IoT Anomaly Lakehouse — Ray Mahbub</title>
+<link rel="icon" type="image/svg+xml" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="%230a0a0b"/><text x="5" y="23" font-family="Georgia, serif" font-style="italic" font-size="17" fill="%23c97e4e">rm</text></svg>' />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,300..500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#0a0a0b; --cream:#f2f0ea; --faint:#98948a; --dim:#5b574e;
+  --copper:#c97e4e; --copper-soft:#e0a075; --line:rgba(242,240,234,.08);
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg); color:var(--cream);
+  font-family:"Inter",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased; line-height:1.6;
+}
+.halo{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 45% at 50% -5%,rgba(201,126,78,.07),transparent)}
+.wrap{position:relative;max-width:1060px;margin:0 auto;padding:0 22px}
+header{display:flex;align-items:center;justify-content:space-between;padding:26px 0}
+.wordmark{font-family:"Fraunces",Georgia,serif;font-style:italic;font-size:18px;color:var(--cream);text-decoration:none}
+header nav a{color:var(--faint);text-decoration:none;font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin-left:22px;transition:color .3s}
+header nav a:hover{color:var(--copper-soft)}
+.hero{padding:64px 0 40px}
+.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:rgba(242,240,234,.04);border-radius:999px;padding:6px 14px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--copper);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(201,126,78,.5)}50%{box-shadow:0 0 0 5px rgba(201,126,78,0)}}
+h1{font-size:clamp(2.1rem,5.5vw,3.6rem);font-weight:600;letter-spacing:-.02em;line-height:1.06;margin:20px 0 16px;max-width:780px}
+h1 em{font-family:"Fraunces",Georgia,serif;font-weight:300;color:var(--copper)}
+.lede{color:var(--faint);max-width:640px;font-size:16px}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+.btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border-radius:12px;padding:10px 18px;font-size:13px;font-weight:500;transition:border-color .3s,background .3s,color .3s}
+.btn-solid{background:var(--copper);color:#0a0a0b;border:1px solid var(--copper)}
+.btn-solid:hover{background:var(--copper-soft);border-color:var(--copper-soft)}
+.btn-ghost{border:1px solid var(--line);color:var(--cream);background:rgba(242,240,234,.03)}
+.btn-ghost:hover{border-color:rgba(201,126,78,.45);color:var(--copper-soft)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:42px 0 8px}
+.stat{border:1px solid var(--line);border-radius:16px;padding:16px 18px;background:linear-gradient(180deg,rgba(242,240,234,.045),rgba(242,240,234,.018))}
+.stat b{display:block;font-size:24px;font-weight:600;color:var(--cream)}
+.stat span{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+section{padding:54px 0 8px}
+.sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:26px}
+.sec-head i{font-family:"Fraunces",Georgia,serif;font-style:italic;color:var(--copper);font-size:14px}
+.sec-head h2{font-size:12px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--faint)}
+.sec-head::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+.card{border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,rgba(242,240,234,.045),rgba(242,240,234,.018));box-shadow:0 -24px 70px -32px rgba(242,240,234,.07) inset;padding:24px;transition:border-color .35s var(--ease),transform .35s var(--ease)}
+.card:hover{border-color:rgba(201,126,78,.35);transform:translateY(-3px)}
+.diagram{padding:14px}
+.diagram svg{width:100%;height:auto;display:block}
+.dlabel{font-family:"JetBrains Mono",monospace;font-size:11px;fill:var(--cream)}
+.dsub{font-family:"JetBrains Mono",monospace;font-size:9px;fill:#98948a}
+.dnote{font-family:"JetBrains Mono",monospace;font-size:9.5px;fill:#5b574e}
+.grid{display:grid;gap:14px}
+.two{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.four{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.stage h3{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.stage h3 span{width:6px;height:6px;border-radius:50%;background:var(--copper);flex:none}
+.stage p{font-size:13px;color:var(--faint);margin-top:6px}
+.stage .rep{margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--dim)}
+.stage .rep b{color:var(--copper-soft);font-weight:400}
+h3.plain{font-size:15px;font-weight:600}
+p.body{font-size:13px;color:var(--faint);margin-top:6px}
+/* demo */
+.demo-card{padding:18px}
+.demo-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:12px}
+.demo-head p{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--dim);margin-right:auto}
+.demo-btn{font-family:"JetBrains Mono",monospace;font-size:11px;border-radius:9px;padding:7px 13px;cursor:pointer;transition:border-color .3s,color .3s,background .3s}
+.demo-btn.inject{border:1px solid rgba(201,126,78,.5);background:rgba(201,126,78,.12);color:var(--copper-soft)}
+.demo-btn.inject:hover{background:rgba(201,126,78,.22)}
+.demo-btn.pause{border:1px solid var(--line);background:rgba(242,240,234,.03);color:var(--faint)}
+.demo-btn.pause:hover{color:var(--cream)}
+#demo-canvas{width:100%;height:280px;display:block;border-radius:12px;background:rgba(242,240,234,.02)}
+.legend{display:flex;flex-wrap:wrap;gap:18px;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--dim)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+#demo-status{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--dim);margin-top:10px;min-height:18px}
+#demo-status b{color:var(--copper-soft);font-weight:400}
+/* mapping table */
+.map-wrap{overflow-x:auto}
+table.map{width:100%;border-collapse:collapse;font-size:13px}
+table.map th{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);text-align:left;font-weight:500;padding:10px 14px;border-bottom:1px solid var(--line)}
+table.map td{padding:12px 14px;border-bottom:1px solid var(--line);color:var(--faint);vertical-align:top}
+table.map td:first-child{color:var(--cream)}
+table.map td b{color:var(--copper-soft);font-weight:500}
+table.map .free{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--copper)}
+table.map tr:last-child td{border-bottom:none}
+footer{margin-top:64px;border-top:1px solid var(--line);padding:26px 0 40px;display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--dim)}
+footer a{color:var(--faint);text-decoration:none}
+footer a:hover{color:var(--copper-soft)}
+.fade{opacity:0;transform:translateY(20px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.fade.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){
+  .fade{opacity:1;transform:none;transition:none}
+  .dot{animation:none}
+  html{scroll-behavior:auto}
+  .card:hover{transform:none}
+}
+</style>
+</head>
+<body>
+<div class="halo" aria-hidden="true"></div>
+<div class="wrap">
+
+<header>
+  <a class="wordmark" href="https://github.com/ray98872">ray mahbub</a>
+  <nav>
+    <a href="#architecture">Architecture</a>
+    <a href="#pipeline">Pipeline</a>
+    <a href="#demo">Live demo</a>
+    <a href="#mapping">Cloud mapping</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <p class="pill"><span class="dot"></span> open-source lakehouse · £0 cloud spend</p>
+  <h1>An AWS + Databricks pipeline, <em>rebuilt on a laptop</em>, for exactly nothing.</h1>
+  <p class="lede">Twelve simulated factory machines stream temperature and vibration telemetry into an
+  S3-compatible data lake, where a PySpark pipeline quarantines bad data, learns each machine's
+  rolling baseline, and flags any reading beyond 3 standard deviations — the statistical core of
+  predictive maintenance. The whole enterprise architecture runs in Docker Compose: MinIO standing
+  in for S3, a Spark container for Databricks, a containerised producer for ECS. Identical
+  architecture, identical APIs, zero cost.</p>
+  <div class="cta">
+    <a class="btn btn-solid" href="https://github.com/ray98872/iot-anomaly-lakehouse" target="_blank" rel="noreferrer">View source on GitHub ↗</a>
+    <a class="btn btn-ghost" href="#demo">Try the 3σ demo</a>
+  </div>
+  <div class="stats">
+    <div class="stat fade"><b>4</b><span>containers</span></div>
+    <div class="stat fade"><b>£0</b><span>monthly cloud bill</span></div>
+    <div class="stat fade"><b>3σ</b><span>anomaly threshold</span></div>
+    <div class="stat fade"><b>~8.6k</b><span>readings / hour</span></div>
+  </div>
+</section>
+
+<section id="architecture">
+  <div class="sec-head"><i>01</i><h2>Architecture</h2></div>
+  <div class="card diagram fade">
+    <svg viewBox="0 0 760 360" role="img" aria-label="Architecture diagram: a containerised IoT generator streams JSON over the S3 API into a MinIO bucket's raw zone; a Jupyter PySpark container reads the raw zone, quarantines malformed records, computes rolling statistics, and writes scored Parquet back to the processed zone.">
+      <defs>
+        <marker id="a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#5b574e"/></marker>
+        <marker id="ac" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c97e4e"/></marker>
+      </defs>
+
+      <!-- generator -->
+      <rect x="14" y="120" width="158" height="96" rx="10" fill="rgba(201,126,78,.10)" stroke="rgba(201,126,78,.5)"/>
+      <text x="93" y="146" text-anchor="middle" class="dlabel">iot-generator</text>
+      <text x="93" y="161" text-anchor="middle" class="dsub">python + boto3</text>
+      <text x="93" y="180" text-anchor="middle" class="dsub">12 machines · 5s cadence</text>
+      <text x="93" y="193" text-anchor="middle" class="dsub">injected faults + bad rows</text>
+      <text x="93" y="232" text-anchor="middle" class="dnote">replaces aws ecs</text>
+
+      <!-- minio -->
+      <rect x="262" y="44" width="222" height="266" rx="12" fill="rgba(242,240,234,.03)" stroke="rgba(242,240,234,.14)"/>
+      <text x="373" y="70" text-anchor="middle" class="dlabel">minio · sensor-data-lake</text>
+      <text x="373" y="84" text-anchor="middle" class="dsub">s3-compatible object store</text>
+
+      <rect x="280" y="100" width="186" height="50" rx="8" fill="rgba(242,240,234,.04)" stroke="rgba(242,240,234,.14)"/>
+      <text x="373" y="121" text-anchor="middle" class="dlabel">raw/</text>
+      <text x="373" y="135" text-anchor="middle" class="dsub">json · date/hour partitions</text>
+
+      <rect x="280" y="162" width="186" height="44" rx="8" fill="rgba(242,240,234,.04)" stroke="rgba(242,240,234,.14)" stroke-dasharray="4 4"/>
+      <text x="373" y="180" text-anchor="middle" class="dlabel">quarantine/</text>
+      <text x="373" y="194" text-anchor="middle" class="dsub">rejected records · auditable</text>
+
+      <rect x="280" y="218" width="186" height="64" rx="8" fill="rgba(201,126,78,.10)" stroke="rgba(201,126,78,.5)"/>
+      <text x="373" y="239" text-anchor="middle" class="dlabel">processed/</text>
+      <text x="373" y="253" text-anchor="middle" class="dsub">readings + anomalies</text>
+      <text x="373" y="266" text-anchor="middle" class="dsub">parquet · date-partitioned</text>
+
+      <text x="373" y="330" text-anchor="middle" class="dnote">replaces aws s3</text>
+
+      <!-- spark -->
+      <rect x="576" y="92" width="170" height="172" rx="10" fill="rgba(242,240,234,.04)" stroke="rgba(242,240,234,.14)"/>
+      <text x="661" y="118" text-anchor="middle" class="dlabel">spark-notebook</text>
+      <text x="661" y="132" text-anchor="middle" class="dsub">jupyter + pyspark 3.5</text>
+      <text x="661" y="158" text-anchor="middle" class="dsub">schema-enforced ingest</text>
+      <text x="661" y="174" text-anchor="middle" class="dsub">quality gate</text>
+      <text x="661" y="190" text-anchor="middle" class="dsub">rolling mean / σ windows</text>
+      <text x="661" y="206" text-anchor="middle" class="dsub">flag |x−μ| &gt; 3σ</text>
+      <text x="661" y="232" text-anchor="middle" class="dnote">replaces databricks</text>
+
+      <!-- arrows -->
+      <line x1="172" y1="135" x2="278" y2="122" stroke="#c97e4e" stroke-width="1.4" marker-end="url(#ac)"/>
+      <text x="186" y="116" class="dnote">put json · s3 api</text>
+      <circle r="2.4" fill="#c97e4e"><animateMotion dur="2.6s" repeatCount="indefinite" path="M176,134 L272,123"/></circle>
+
+      <line x1="466" y1="125" x2="574" y2="140" stroke="#5b574e" stroke-width="1.2" marker-end="url(#a)"/>
+      <text x="488" y="118" class="dnote">read s3a://</text>
+      <circle r="2.2" fill="#98948a" opacity=".8"><animateMotion dur="3s" repeatCount="indefinite" path="M470,126 L568,139"/></circle>
+
+      <line x1="576" y1="186" x2="468" y2="184" stroke="#5b574e" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#a)"/>
+      <text x="492" y="176" class="dnote">rejects</text>
+
+      <line x1="576" y1="232" x2="468" y2="244" stroke="#c97e4e" stroke-width="1.4" marker-end="url(#ac)"/>
+      <text x="496" y="262" class="dnote">write parquet</text>
+      <circle r="2.4" fill="#c97e4e"><animateMotion dur="2.8s" repeatCount="indefinite" path="M570,233 L474,243"/></circle>
+    </svg>
+  </div>
+  <div class="grid two" style="margin-top:14px">
+    <div class="card fade">
+      <h3 class="plain">API parity, not approximation</h3>
+      <p class="body">MinIO speaks the real S3 API, so the producer uses unmodified boto3 and Spark uses the
+      standard s3a:// connector with production Hadoop settings. Repointing the whole system at AWS is an
+      endpoint-and-credentials change — zero application code touched.</p>
+    </div>
+    <div class="card fade">
+      <h3 class="plain">A medallion lake in miniature</h3>
+      <p class="body">Raw, quarantine and processed zones mirror the bronze/silver/gold layout: every stage is
+      independently auditable and rerunnable, and bad records land in a dead-letter prefix instead of
+      vanishing silently.</p>
+    </div>
+  </div>
+</section>
+
+<section id="pipeline">
+  <div class="sec-head"><i>02</i><h2>The pipeline</h2></div>
+  <div class="grid four">
+    <div class="card stage fade"><h3><span></span>Ingest</h3><p>Explicit schema over the raw JSON zone — no costly inference, and PERMISSIVE mode shunts
+    anything nonconforming into a corrupt-record column.</p><p class="rep"><b>bronze</b></p></div>
+    <div class="card stage fade"><h3><span></span>Quality gate</h3><p>Nulls, unparseable timestamps and physically implausible values are filtered and written to
+    quarantine — auditable, never silently dropped.</p><p class="rep"><b>dead-letter zone</b></p></div>
+    <div class="card stage fade"><h3><span></span>Rolling baseline</h3><p>Per machine, a trailing 20-reading window — excluding the current row — yields a rolling mean
+    and standard deviation for each metric.</p><p class="rep"><b>silver</b></p></div>
+    <div class="card stage fade"><h3><span></span>3σ scoring</h3><p>Readings deviating &gt;3σ from their own machine's baseline are flagged, z-scored, and written
+    back as date-partitioned Parquet.</p><p class="rep"><b>gold</b></p></div>
+  </div>
+  <div class="grid two" style="margin-top:14px">
+    <div class="card fade">
+      <h3 class="plain">Why 3σ, why per machine</h3>
+      <p class="body">Each machine is judged against its own recent history, so a naturally hot machine isn't a
+      false alarm and a quietly degrading one can't hide in the fleet average. No labelled failure data, no
+      training phase — it works from the first hour of telemetry, and becomes the benchmark any future ML
+      model has to beat.</p>
+    </div>
+    <div class="card fade">
+      <h3 class="plain">The business case</h3>
+      <p class="body">Unplanned industrial downtime costs tens of thousands of pounds per hour. Bearing wear and
+      overheating show up as vibration and thermal drift long before failure — catching the 3σ excursion early
+      converts an emergency stoppage into a scheduled maintenance slot.</p>
+    </div>
+  </div>
+</section>
+
+<section id="demo">
+  <div class="sec-head"><i>03</i><h2>Live demo — the detection logic, in your browser</h2></div>
+  <div class="card demo-card fade">
+    <div class="demo-head">
+      <p>machine-007 · temperature · rolling μ ± 3σ (trailing 40)</p>
+      <button class="demo-btn inject" id="btn-inject" type="button">inject fault</button>
+      <button class="demo-btn pause" id="btn-pause" type="button">pause</button>
+    </div>
+    <canvas id="demo-canvas" aria-label="Live simulated temperature stream with rolling mean and three-sigma band; injected faults are flagged when they exit the band."></canvas>
+    <div class="legend">
+      <span><i style="background:#9bb4c9"></i>temperature</span>
+      <span><i style="background:#5b574e"></i>rolling mean</span>
+      <span><i style="background:rgba(201,126,78,.25)"></i>±3σ band</span>
+      <span><i style="background:#c97e4e"></i>flagged anomaly</span>
+    </div>
+    <p id="demo-status">streaming…</p>
+  </div>
+  <p class="body" style="margin-top:14px;max-width:680px">This is the same algorithm the Spark job runs over the lake — a trailing window
+  that excludes the current reading, so a fault can't contaminate the baseline it's judged against. Press
+  <em style="color:var(--copper-soft);font-style:normal">inject fault</em> and watch the excursion get flagged the moment it
+  leaves the band, while the band itself barely moves.</p>
+</section>
+
+<section id="mapping">
+  <div class="sec-head"><i>04</i><h2>Cloud mapping &amp; cost strategy</h2></div>
+  <div class="card map-wrap fade" style="padding:10px 4px">
+    <table class="map">
+      <thead><tr><th>Enterprise cloud component</th><th>Role</th><th>Local open-source equivalent</th><th>Cost</th></tr></thead>
+      <tbody>
+        <tr><td>AWS S3</td><td>Data lake object storage</td><td><b>MinIO</b> — S3-compatible API</td><td class="free">£0</td></tr>
+        <tr><td>AWS ECS / Fargate</td><td>Containerised data producer</td><td><b>Local Docker container</b> (iot-generator)</td><td class="free">£0</td></tr>
+        <tr><td>Databricks</td><td>Managed Spark &amp; notebooks</td><td><b>Apache Spark container</b> (Jupyter + PySpark)</td><td class="free">£0</td></tr>
+        <tr><td>IAM credentials</td><td>Lake access control</td><td>MinIO access / secret keys</td><td class="free">£0</td></tr>
+        <tr><td>CloudWatch Logs</td><td>Producer observability</td><td>docker compose logs</td><td class="free">£0</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="grid two" style="margin-top:14px">
+    <div class="card fade">
+      <h3 class="plain">Zero-cost iteration where it matters</h3>
+      <p class="body">The expensive part of cloud data engineering is the trial-and-error loop — every schema
+      tweak, partition experiment and window rewrite billed per DBU and per GB. Here that loop runs at £0:
+      every architectural decision is tested locally exactly as it would execute in production, and a dev
+      cluster left idling overnight costs nothing instead of hundreds a month.</p>
+    </div>
+    <div class="card fade">
+      <h3 class="plain">The skills transfer 1:1</h3>
+      <p class="body">PySpark window functions, S3A configuration, Hive-style partitioning, medallion zoning and
+      Compose orchestration are the same muscles used on the real AWS + Databricks stack. The architecture is
+      identical — only the bill is different.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>© <span id="y">2026</span> Ray Mahbub · identical architecture, none of the bill</p>
+  <p><a href="https://github.com/ray98872/iot-anomaly-lakehouse">source</a> · <a href="https://github.com/ray98872">github</a></p>
+</footer>
+
+</div>
+<script>
+document.getElementById("y").textContent = new Date().getFullYear();
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (!reduced) {
+  const io = new IntersectionObserver((es) => {
+    es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll(".fade").forEach((el) => io.observe(el));
+} else {
+  document.querySelectorAll(".fade").forEach((el) => el.classList.add("in"));
+}
+
+/* ---------- live 3σ demo ---------- */
+(function () {
+  const canvas = document.getElementById("demo-canvas");
+  const ctx = canvas.getContext("2d");
+  const statusEl = document.getElementById("demo-status");
+  const WINDOW = 40, SIGMA = 3, MAX_POINTS = 220;
+  let base = 70, points = [], pendingFault = 0, running = !reduced, flaggedCount = 0;
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const r = canvas.getBoundingClientRect();
+    canvas.width = r.width * dpr; canvas.height = r.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener("resize", () => { resize(); draw(); });
+
+  function gauss() {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function tick() {
+    base += gauss() * 0.04;
+    let value = base + gauss() * 0.8;
+    if (pendingFault > 0) { value += 14 + Math.random() * 14; pendingFault--; }
+
+    // trailing window stats, excluding the current reading — same as the Spark job
+    const hist = points.slice(-WINDOW).map(p => p.v);
+    let mean = null, std = null, anomaly = false;
+    if (hist.length >= 10) {
+      mean = hist.reduce((a, b) => a + b, 0) / hist.length;
+      std = Math.sqrt(hist.reduce((a, b) => a + (b - mean) ** 2, 0) / (hist.length - 1));
+      anomaly = std > 1e-6 && Math.abs(value - mean) > SIGMA * std;
+    }
+    points.push({ v: value, mean, std, anomaly });
+    if (points.length > MAX_POINTS) points.shift();
+    if (anomaly) {
+      flaggedCount++;
+      const z = ((value - mean) / std).toFixed(1);
+      statusEl.innerHTML = "<b>⚑ anomaly flagged</b> · z = " + z + " · total flagged: " + flaggedCount;
+    }
+  }
+
+  function draw() {
+    const w = canvas.getBoundingClientRect().width, h = canvas.getBoundingClientRect().height;
+    ctx.clearRect(0, 0, w, h);
+    if (points.length < 2) return;
+    const vals = points.flatMap(p => p.std != null ? [p.v, p.mean - SIGMA * p.std, p.mean + SIGMA * p.std] : [p.v]);
+    const lo = Math.min(...vals) - 2, hi = Math.max(...vals) + 2;
+    const x = i => (i / (MAX_POINTS - 1)) * w;
+    const y = v => h - ((v - lo) / (hi - lo)) * (h - 24) - 12;
+
+    // 3σ band
+    ctx.beginPath();
+    let started = false;
+    points.forEach((p, i) => { if (p.std != null) { const px = x(i), py = y(p.mean + SIGMA * p.std); started ? ctx.lineTo(px, py) : ctx.moveTo(px, py); started = true; } });
+    for (let i = points.length - 1; i >= 0; i--) { const p = points[i]; if (p.std != null) ctx.lineTo(x(i), y(p.mean - SIGMA * p.std)); }
+    ctx.closePath(); ctx.fillStyle = "rgba(201,126,78,.10)"; ctx.fill();
+
+    // rolling mean
+    ctx.beginPath(); started = false;
+    points.forEach((p, i) => { if (p.mean != null) { started ? ctx.lineTo(x(i), y(p.mean)) : ctx.moveTo(x(i), y(p.mean)); started = true; } });
+    ctx.strokeStyle = "#5b574e"; ctx.lineWidth = 1; ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
+
+    // signal
+    ctx.beginPath();
+    points.forEach((p, i) => i ? ctx.lineTo(x(i), y(p.v)) : ctx.moveTo(x(i), y(p.v)));
+    ctx.strokeStyle = "#9bb4c9"; ctx.lineWidth = 1.4; ctx.stroke();
+
+    // anomalies
+    points.forEach((p, i) => {
+      if (p.anomaly) {
+        ctx.beginPath(); ctx.arc(x(i), y(p.v), 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = "#c97e4e"; ctx.fill();
+        ctx.beginPath(); ctx.arc(x(i), y(p.v), 7, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(201,126,78,.45)"; ctx.lineWidth = 1; ctx.stroke();
+      }
+    });
+  }
+
+  document.getElementById("btn-inject").addEventListener("click", () => {
+    pendingFault = 2 + Math.floor(Math.random() * 2);
+    statusEl.textContent = "fault injected — watch the band…";
+    if (!running) { running = true; document.getElementById("btn-pause").textContent = "pause"; }
+  });
+  document.getElementById("btn-pause").addEventListener("click", (e) => {
+    running = !running;
+    e.target.textContent = running ? "pause" : "resume";
+    statusEl.textContent = running ? "streaming…" : "paused";
+  });
+
+  resize();
+  for (let i = 0; i < 80; i++) tick(); // pre-fill so the band exists on load
+  draw();
+  if (reduced) statusEl.textContent = "paused (reduced motion) — press resume to stream";
+  setInterval(() => { if (running) { tick(); draw(); } }, 120);
+})();
+</script>
+</body>
+</html>
